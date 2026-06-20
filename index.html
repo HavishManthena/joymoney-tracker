@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Joy Tracker ✦ Spend Happy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131c;
+    --surface2: #1c1c2e;
+    --border: rgba(255,255,255,0.07);
+    --text: #f0eeff;
+    --muted: rgba(240,238,255,0.45);
+    --accent: #c8ff57;
+    --accent-dim: rgba(200,255,87,0.12);
+    --amber: #ffb830;
+    --amber-dim: rgba(255,184,48,0.12);
+    --red: #ff5757;
+    --red-dim: rgba(255,87,87,0.12);
+    --radius: 20px;
+    --radius-sm: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    overscroll-behavior: none;
+  }
+
+  /* ─── NOISE OVERLAY ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  /* ─── GLOW BLOBS ─── */
+  .blob {
+    position: fixed; border-radius: 50%;
+    filter: blur(80px); pointer-events: none; z-index: 0;
+    transition: background 1.2s ease;
+  }
+  .blob-1 { width: 420px; height: 420px; top: -120px; right: -80px; background: rgba(200,255,87,0.06); }
+  .blob-2 { width: 340px; height: 340px; bottom: -60px; left: -60px; background: rgba(160,100,255,0.07); }
+
+  /* ─── APP SHELL ─── */
+  #app { position: relative; z-index: 1; max-width: 440px; margin: 0 auto; padding: 0 0 120px; min-height: 100dvh; }
+
+  /* ─── SETUP SCREEN ─── */
+  #setup-screen {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 28px 24px;
+    overflow-y: auto;
+  }
+  #setup-screen.hidden { display: none; }
+
+  .setup-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 32px;
+  }
+  .setup-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 8vw, 38px); font-weight: 800;
+    line-height: 1.1; text-align: center;
+    margin-bottom: 10px;
+  }
+  .setup-sub { color: var(--muted); font-size: 15px; text-align: center; margin-bottom: 36px; }
+
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 100%; max-width: 400px;
+  }
+
+  .field-group { margin-bottom: 20px; }
+  .field-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; display: block; }
+  .field-input {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px; font-size: 17px; font-weight: 500;
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    outline: none; transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .field-input:focus { border-color: var(--accent); }
+  .field-input::placeholder { color: rgba(240,238,255,0.2); }
+
+  .dollar-wrap { position: relative; }
+  .dollar-wrap .dollar-sign {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--accent); font-size: 17px; font-weight: 600; pointer-events: none;
+  }
+  .dollar-wrap .field-input { padding-left: 28px; }
+
+  .btn-primary {
+    width: 100%; padding: 16px;
+    background: var(--accent); color: #0a0a0f;
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
+    letter-spacing: 0.04em; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    margin-top: 8px;
+  }
+  .btn-primary:active { transform: scale(0.97); }
+
+  /* ─── MAIN HEADER ─── */
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 20px 0;
+  }
+  .top-logo {
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
+  }
+  .settings-btn {
+    width: 40px; height: 40px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted); transition: color 0.2s, border-color 0.2s;
+    font-size: 17px;
+  }
+  .settings-btn:active { color: var(--accent); border-color: var(--accent); }
+
+  /* ─── HERO SECTION ─── */
+  .hero {
+    padding: 28px 20px 0;
+    text-align: center;
+  }
+  .hero-label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+  }
+  .hero-amount {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(64px, 20vw, 90px);
+    font-weight: 800; line-height: 1;
+    letter-spacing: -0.02em;
+    transition: color 0.6s ease;
+  }
+  .hero-amount.green { color: var(--accent); }
+  .hero-amount.amber { color: var(--amber); }
+  .hero-amount.red   { color: var(--red); }
+
+  .hero-sub { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+  /* ─── BURN BAR ─── */
+  .burn-wrap {
+    margin: 24px 20px 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .burn-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .burn-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .burn-pct { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
+  .bar-track {
+    height: 10px; background: var(--surface2);
+    border-radius: 999px; overflow: hidden; position: relative;
+  }
+  .bar-fill {
+    height: 100%; border-radius: 999px;
+    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1), background 0.6s ease;
+  }
+  .bar-fill.green { background: linear-gradient(90deg, #85e800, var(--accent)); }
+  .bar-fill.amber { background: linear-gradient(90deg, #e07800, var(--amber)); }
+  .bar-fill.red   { background: linear-gradient(90deg, #c20000, var(--red)); }
+
+  /* ─── STAT PILLS ─── */
+  .stats-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin: 16px 20px 0;
+  }
+  .stat-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .stat-pill-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .stat-pill-value { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; }
+
+  /* ─── LOG PURCHASE ─── */
+  .log-section { margin: 20px 20px 0; }
+  .section-title {
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .log-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .log-row { display: flex; gap: 10px; }
+  .log-input {
+    flex: 1; background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 13px 14px; font-size: 15px;
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    outline: none; transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .log-input:focus { border-color: var(--accent); }
+  .log-input::placeholder { color: rgba(240,238,255,0.2); }
+  .log-amount { width: 110px; flex: none; }
+  .log-btn {
+    background: var(--accent-dim); color: var(--accent);
+    border: 1px solid rgba(200,255,87,0.25); border-radius: var(--radius-sm);
+    padding: 13px 18px; font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: background 0.2s; white-space: nowrap;
+  }
+  .log-btn:active { background: rgba(200,255,87,0.22); }
+
+  /* ─── PURCHASE LOG ─── */
+  .purchases-section { margin: 20px 20px 0; }
+  .purchase-list { display: flex; flex-direction: column; gap: 8px; }
+  .purchase-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    animation: slideIn 0.3s cubic-bezier(0.34,1.4,0.64,1);
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .purchase-left { display: flex; flex-direction: column; gap: 2px; }
+  .purchase-name { font-size: 15px; font-weight: 500; }
+  .purchase-time { font-size: 12px; color: var(--muted); }
+  .purchase-right { display: flex; align-items: center; gap: 10px; }
+  .purchase-amount { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--red); }
+  .purchase-del {
+    width: 28px; height: 28px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted); font-size: 13px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .purchase-del:active { color: var(--red); border-color: var(--red); }
+
+  .empty-state {
+    text-align: center; padding: 28px 0;
+    color: var(--muted); font-size: 14px;
+  }
+  .empty-emoji { font-size: 32px; display: block; margin-bottom: 8px; }
+
+  /* ─── RESET NOTICE ─── */
+  .reset-card {
+    margin: 16px 20px 0;
+    background: var(--accent-dim);
+    border: 1px solid rgba(200,255,87,0.15);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: rgba(200,255,87,0.85);
+  }
+  .reset-icon { font-size: 16px; flex-shrink: 0; }
+
+  /* ─── SETTINGS PANEL ─── */
+  #settings-panel {
+    position: fixed; inset: 0; z-index: 90;
+    background: rgba(10,10,15,0.85); backdrop-filter: blur(10px);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    padding: 0 0 env(safe-area-inset-bottom, 0);
+    transition: opacity 0.3s;
+  }
+  #settings-panel.hidden { display: none; }
+  .settings-sheet {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 28px 28px 0 0;
+    padding: 20px 24px 36px;
+    width: 100%; max-width: 440px;
+    animation: sheetUp 0.3s cubic-bezier(0.34,1.1,0.64,1);
+  }
+  @keyframes sheetUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .sheet-handle {
+    width: 40px; height: 4px; background: var(--border);
+    border-radius: 2px; margin: 0 auto 20px;
+  }
+  .sheet-title {
+    font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800;
+    margin-bottom: 20px;
+  }
+  .sheet-close {
+    position: absolute; top: 20px; right: 24px;
+    width: 32px; height: 32px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted); font-size: 14px;
+  }
+  .sheet-close:active { color: var(--red); }
+
+  /* ─── WEEKLY STRIP ─── */
+  .week-strip {
+    display: flex; gap: 6px; margin: 16px 20px 0;
+  }
+  .week-day {
+    flex: 1; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 4px; text-align: center;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .week-day.today {
+    border-color: rgba(200,255,87,0.35);
+    background: var(--accent-dim); color: var(--accent);
+  }
+  .week-day span { display: block; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+  .week-day.today span { color: var(--accent); }
+
+  /* ─── RESPONSIVE ─── */
+  @media (min-width: 441px) {
+    #app { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  }
+
+  /* ─── UTILS ─── */
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  .shake { animation: shake 0.4s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  .number-pop { animation: numPop 0.35s cubic-bezier(0.34,1.7,0.64,1); }
+  @keyframes numPop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<!-- DECORATIVE BLOBS -->
+<div class="blob blob-1" id="blob1"></div>
+<div class="blob blob-2"></div>
+
+<!-- ══════════════════ SETUP SCREEN ══════════════════ -->
+<div id="setup-screen">
+  <div class="setup-logo">✦ Joy Tracker</div>
+  <h1 class="setup-title">Your money,<br>your joy.</h1>
+  <p class="setup-sub">Tell us what's yours. We'll show you exactly<br>how much fun you can have today.</p>
+
+  <div class="setup-card">
+    <div class="field-group">
+      <label class="field-label" for="setup-salary">Monthly take-home pay</label>
+      <div class="dollar-wrap">
+        <span class="dollar-sign">$</span>
+        <input class="field-input" id="setup-salary" type="number" inputmode="decimal" placeholder="4500" min="1">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="setup-fixed">Fixed monthly costs <span style="font-weight:400;text-transform:none;letter-spacing:0">(rent, bills, subs…)</span></label>
+      <div class="dollar-wrap">
+        <span class="dollar-sign">$</span>
+        <input class="field-input" id="setup-fixed" type="number" inputmode="decimal" placeholder="2200" min="0">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="setup-savings">Monthly savings goal</label>
+      <div class="dollar-wrap">
+        <span class="dollar-sign">$</span>
+        <input class="field-input" id="setup-savings" type="number" inputmode="decimal" placeholder="500" min="0">
+      </div>
+    </div>
+    <button class="btn-primary" id="setup-save">Calculate my Joy Money →</button>
+  </div>
+</div>
+
+<!-- ══════════════════ MAIN APP ══════════════════ -->
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="top-logo">✦ Joy Tracker</div>
+    <button class="settings-btn" id="open-settings" aria-label="Settings">⚙</button>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-label">You can still spend today</div>
+    <div class="hero-amount green" id="hero-amount">$0</div>
+    <div class="hero-sub" id="hero-sub">of your daily joy money</div>
+  </div>
+
+  <!-- BURN BAR -->
+  <div class="burn-wrap">
+    <div class="burn-row">
+      <span class="burn-label">Today's burn</span>
+      <span class="burn-pct green" id="burn-pct">100%</span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill green" id="bar-fill" style="width:100%"></div>
+    </div>
+  </div>
+
+  <!-- WEEK STRIP -->
+  <div class="week-strip" id="week-strip"></div>
+
+  <!-- STAT PILLS -->
+  <div class="stats-grid">
+    <div class="stat-pill">
+      <div class="stat-pill-label">Daily joy budget</div>
+      <div class="stat-pill-value" id="stat-daily">$0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-pill-label">Play money left this week</div>
+      <div class="stat-pill-value" id="stat-weekly">$0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-pill-label">Spent today</div>
+      <div class="stat-pill-value" id="stat-spent">$0</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-pill-label">Monthly play pool</div>
+      <div class="stat-pill-value" id="stat-monthly">$0</div>
+    </div>
+  </div>
+
+  <!-- LOG PURCHASE -->
+  <div class="log-section">
+    <div class="section-title">Log a purchase</div>
+    <div class="log-form">
+      <input class="log-input" id="log-name" type="text" placeholder="What did you get? ✨" maxlength="60">
+      <div class="log-row">
+        <div class="dollar-wrap" style="flex:1">
+          <span class="dollar-sign" style="top:50%;transform:translateY(-50%);left:12px">$</span>
+          <input class="log-input log-amount" id="log-amount" type="number" inputmode="decimal" placeholder="0.00" min="0" style="padding-left:26px">
+        </div>
+        <button class="log-btn" id="log-btn">+ Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PURCHASE LOG -->
+  <div class="purchases-section">
+    <div class="section-title">Today's joy log</div>
+    <div class="purchase-list" id="purchase-list"></div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ══════════════════ SETTINGS PANEL ══════════════════ -->
+<div id="settings-panel" class="hidden">
+  <div class="settings-sheet" style="position:relative">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" id="close-settings">✕</button>
+    <div class="sheet-title">Update your numbers</div>
+
+    <div class="field-group">
+      <label class="field-label" for="s-salary">Monthly take-home</label>
+      <div class="dollar-wrap">
+        <span class="dollar-sign">$</span>
+        <input class="field-input" id="s-salary" type="number" inputmode="decimal" min="1">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="s-fixed">Fixed monthly costs</label>
+      <div class="dollar-wrap">
+        <span class="dollar-sign">$</span>
+        <input class="field-input" id="s-fixed" type="number" inputmode="decimal" min="0">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="s-savings">Monthly savings goal</label>
+      <div class="dollar-wrap">
+        <span class="dollar-sign">$</span>
+        <input class="field-input" id="s-savings" type="number" inputmode="decimal" min="0">
+      </div>
+    </div>
+    <button class="btn-primary" id="settings-save">Save changes</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  STATE & STORAGE
+// ══════════════════════════════════════════════
+const STORE = {
+  get(k, fallback = null) {
+    try { const v = localStorage.getItem(k); return v !== null ? JSON.parse(v) : fallback; }
+    catch { return fallback; }
+  },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+function weekKey() {
+  const d = new Date();
+  const day = d.getDay(); // 0=Sun
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((day + 6) % 7));
+  return `${monday.getFullYear()}-${monday.getMonth()}-${monday.getDate()}`;
+}
+
+function getConfig()    { return STORE.get('jt_config', null); }
+function saveConfig(c)  { STORE.set('jt_config', c); }
+
+function getTodayLog() {
+  const key = 'jt_log_' + todayKey();
+  return STORE.get(key, []);
+}
+function saveTodayLog(arr) {
+  const key = 'jt_log_' + todayKey();
+  STORE.set(key, arr);
+}
+
+function getWeeklySpent() {
+  const key = 'jt_week_' + weekKey();
+  return STORE.get(key, 0);
+}
+function saveWeeklySpent(amt) {
+  const key = 'jt_week_' + weekKey();
+  STORE.set(key, amt);
+}
+
+// ══════════════════════════════════════════════
+//  CALCULATIONS
+// ══════════════════════════════════════════════
+function calcBudgets(config) {
+  const { salary, fixed, savings } = config;
+  const playMonthly = Math.max(0, salary - fixed - savings);
+  const daysInMonth = 30.44;
+  const dailyBudget = playMonthly / daysInMonth;
+  const weeklyBudget = playMonthly / 4.33;
+  return { playMonthly, dailyBudget, weeklyBudget };
+}
+
+function todaySpent() {
+  return getTodayLog().reduce((s, p) => s + p.amount, 0);
+}
+function weekSpent() {
+  return getWeeklySpent();
+}
+
+// ══════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════
+function fmt(n) {
+  return '$' + Math.max(0, n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtShort(n) {
+  if (Math.abs(n) >= 1000) return '$' + (n/1000).toFixed(1) + 'k';
+  return '$' + Math.max(0, n).toFixed(0);
+}
+
+function getColorClass(pct) {
+  if (pct > 0.5) return 'green';
+  if (pct > 0.25) return 'amber';
+  return 'red';
+}
+
+function render() {
+  const config = getConfig();
+  if (!config) return;
+
+  const { playMonthly, dailyBudget, weeklyBudget } = calcBudgets(config);
+  const spentToday = todaySpent();
+  const spentWeek  = weekSpent();
+  const remainingToday  = dailyBudget - spentToday;
+  const remainingWeekly = weeklyBudget - spentWeek;
+
+  const pct = dailyBudget > 0 ? Math.max(0, Math.min(1, remainingToday / dailyBudget)) : 0;
+  const colorClass = getColorClass(pct);
+
+  // Update blob color
+  document.getElementById('blob1').style.background =
+    colorClass === 'green' ? 'rgba(200,255,87,0.07)' :
+    colorClass === 'amber' ? 'rgba(255,184,48,0.07)' : 'rgba(255,87,87,0.07)';
+
+  // Hero
+  const heroEl = document.getElementById('hero-amount');
+  heroEl.textContent = fmt(remainingToday);
+  heroEl.className = `hero-amount ${colorClass}`;
+
+  const heroSub = document.getElementById('hero-sub');
+  if (remainingToday <= 0) {
+    heroSub.textContent = "You've used up today's joy money 🌙";
+  } else if (pct > 0.75) {
+    heroSub.textContent = "of your daily joy money ✦ spend freely!";
+  } else if (pct > 0.5) {
+    heroSub.textContent = "of your daily joy money — still looking good";
+  } else if (pct > 0.25) {
+    heroSub.textContent = "of your daily joy money — spend mindfully";
+  } else {
+    heroSub.textContent = "of your daily joy money — almost there";
+  }
+
+  // Burn bar
+  const fillEl = document.getElementById('bar-fill');
+  fillEl.style.width = (pct * 100) + '%';
+  fillEl.className = `bar-fill ${colorClass}`;
+  const pctEl = document.getElementById('burn-pct');
+  pctEl.textContent = Math.round(pct * 100) + '% remaining';
+  pctEl.className = `burn-pct ${colorClass}`;
+
+  // Stats
+  document.getElementById('stat-daily').textContent   = fmt(dailyBudget);
+  document.getElementById('stat-weekly').textContent  = fmt(Math.max(0, remainingWeekly));
+  document.getElementById('stat-spent').textContent   = fmt(spentToday);
+  document.getElementById('stat-monthly').textContent = fmt(playMonthly);
+
+  // Week strip
+  renderWeekStrip(weeklyBudget, spentWeek);
+
+  // Purchase list
+  renderPurchases();
+}
+
+function renderWeekStrip(weeklyBudget, spentWeek) {
+  const days = ['M','T','W','T','F','S','S'];
+  const today = new Date();
+  const dayOfWeek = (today.getDay() + 6) % 7; // 0=Mon
+  const strip = document.getElementById('week-strip');
+  strip.innerHTML = '';
+  const dailyEq = weeklyBudget / 7;
+  days.forEach((d, i) => {
+    const div = document.createElement('div');
+    div.className = 'week-day' + (i === dayOfWeek ? ' today' : '');
+    const amt = i === dayOfWeek
+      ? fmtShort(Math.max(0, dailyEq - todaySpent()))
+      : (i < dayOfWeek ? '✓' : fmtShort(dailyEq));
+    div.innerHTML = `<span>${d}</span>${amt}`;
+    strip.appendChild(div);
+  });
+}
+
+function renderPurchases() {
+  const log = getTodayLog();
+  const list = document.getElementById('purchase-list');
+  if (log.length === 0) {
+    list.innerHTML = `<div class="empty-state"><span class="empty-emoji">🛍️</span>Nothing logged yet — go enjoy something!</div>`;
+    return;
+  }
+  list.innerHTML = '';
+  [...log].reverse().forEach((p, ri) => {
+    const i = log.length - 1 - ri;
+    const div = document.createElement('div');
+    div.className = 'purchase-item';
+    const t = new Date(p.ts);
+    const time = t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    div.innerHTML = `
+      <div class="purchase-left">
+        <div class="purchase-name">${escHtml(p.name)}</div>
+        <div class="purchase-time">${time}</div>
+      </div>
+      <div class="purchase-right">
+        <div class="purchase-amount">-${fmt(p.amount)}</div>
+        <button class="purchase-del" data-idx="${i}" aria-label="Remove">✕</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════
+//  EVENTS
+// ══════════════════════════════════════════════
+
+// Setup
+document.getElementById('setup-save').addEventListener('click', () => {
+  const salary  = parseFloat(document.getElementById('setup-salary').value) || 0;
+  const fixed   = parseFloat(document.getElementById('setup-fixed').value)  || 0;
+  const savings = parseFloat(document.getElementById('setup-savings').value) || 0;
+  if (salary <= 0) {
+    document.getElementById('setup-salary').classList.add('shake');
+    setTimeout(() => document.getElementById('setup-salary').classList.remove('shake'), 500);
+    return;
+  }
+  saveConfig({ salary, fixed, savings });
+  document.getElementById('setup-screen').classList.add('hidden');
+  render();
+});
+
+// Log purchase
+document.getElementById('log-btn').addEventListener('click', addPurchase);
+document.getElementById('log-amount').addEventListener('keydown', e => { if (e.key === 'Enter') addPurchase(); });
+
+function addPurchase() {
+  const nameEl   = document.getElementById('log-name');
+  const amountEl = document.getElementById('log-amount');
+  const name   = nameEl.value.trim() || 'Something fun';
+  const amount = parseFloat(amountEl.value);
+  if (!amount || amount <= 0) {
+    amountEl.classList.add('shake');
+    setTimeout(() => amountEl.classList.remove('shake'), 500);
+    return;
+  }
+  const log = getTodayLog();
+  log.push({ name, amount, ts: Date.now() });
+  saveTodayLog(log);
+
+  // Update weekly spent
+  const newWeekly = getWeeklySpent() + amount;
+  saveWeeklySpent(newWeekly);
+
+  nameEl.value   = '';
+  amountEl.value = '';
+
+  // Pop animation on hero
+  const heroEl = document.getElementById('hero-amount');
+  heroEl.classList.remove('number-pop');
+  void heroEl.offsetWidth;
+  heroEl.classList.add('number-pop');
+
+  render();
+}
+
+// Delete purchase
+document.getElementById('purchase-list').addEventListener('click', e => {
+  const btn = e.target.closest('[data-idx]');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.idx);
+  const log = getTodayLog();
+  const removed = log[idx];
+  if (!removed) return;
+  log.splice(idx, 1);
+  saveTodayLog(log);
+  // subtract from weekly
+  const newWeekly = Math.max(0, getWeeklySpent() - removed.amount);
+  saveWeeklySpent(newWeekly);
+  render();
+});
+
+// Settings open/close
+document.getElementById('open-settings').addEventListener('click', () => {
+  const config = getConfig();
+  if (config) {
+    document.getElementById('s-salary').value  = config.salary;
+    document.getElementById('s-fixed').value   = config.fixed;
+    document.getElementById('s-savings').value = config.savings;
+  }
+  document.getElementById('settings-panel').classList.remove('hidden');
+});
+document.getElementById('close-settings').addEventListener('click', () => {
+  document.getElementById('settings-panel').classList.add('hidden');
+});
+document.getElementById('settings-panel').addEventListener('click', e => {
+  if (e.target === document.getElementById('settings-panel'))
+    document.getElementById('settings-panel').classList.add('hidden');
+});
+document.getElementById('settings-save').addEventListener('click', () => {
+  const salary  = parseFloat(document.getElementById('s-salary').value)  || 0;
+  const fixed   = parseFloat(document.getElementById('s-fixed').value)   || 0;
+  const savings = parseFloat(document.getElementById('s-savings').value) || 0;
+  if (salary <= 0) return;
+  saveConfig({ salary, fixed, savings });
+  document.getElementById('settings-panel').classList.add('hidden');
+  render();
+});
+
+// ══════════════════════════════════════════════
+//  MIDNIGHT RESET CHECK
+// ══════════════════════════════════════════════
+let lastDateKey = todayKey();
+function checkMidnightReset() {
+  const current = todayKey();
+  if (current !== lastDateKey) {
+    lastDateKey = current;
+    render(); // new day = fresh log (different localStorage key)
+  }
+}
+setInterval(checkMidnightReset, 30000); // check every 30s
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+const config = getConfig();
+if (config) {
+  document.getElementById('setup-screen').classList.add('hidden');
+  render();
+}
+// else: setup screen is shown by default
+</script>
+</body>
+</html>
